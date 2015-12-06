@@ -1,0 +1,30 @@
+group 'fitnesse-team-foundation-server'
+version '1.0-SNAPSHOT'
+
+apply plugin: 'java'
+
+repositories {
+    mavenCentral()
+}
+
+sourceSets {
+    main {
+        java {
+            srcDir 'src/'
+        }
+    }
+
+    test {
+        java {
+            srcDir 'test/'
+        }
+    }
+}
+
+dependencies {
+    compile 'org.fitnesse:fitnesse:20150814'
+    compile files('team-foundation-server-sdk-redist/lib/com.microsoft.tfs.sdk-11.0.0.jar')
+    compile 'commons-io:commons-io:2.4'
+    testCompile group: 'junit', name: 'junit', version: '4.11'
+    testCompile group: 'org.mockito', name: 'mockito-all', version: '1.9.5'
+}
