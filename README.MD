@@ -7,14 +7,18 @@ Based on <https://github.com/amolenaar/fitnesse-git-plugin> and the samples in [
 
 ## Status
 
-Very very very alpha - just a proof of concept at the moment.  Tests are lacking and pointless.  **Do not use anywhere**
+Alpha - just a proof of concept at the moment.  Tests are lacking.  **Do not use anywhere**
 
 ## Build
 Build uses gradle so install that and then run `gradle jar` , which will create a build folder and put the new
 jar into it.
 
 ## Testing
-**None**
+Lacking at the minute - and some weird stuff creating new folders everytime with a time stamp to stop conflicts - probably makes
+loads of orphaned working directories in TFS.
+
+You'll need a Tfs project created called `$/FitnesseTfsTest` in the collection at `http://localhost:8080/tfs/DefaultCollection/`.
+These values can be changed in the constants in the tests.
 
 ## Pre-installation
 You need to have a TFS based project created on your system which is mapped to your fitnesse folder.  It shouldn't have

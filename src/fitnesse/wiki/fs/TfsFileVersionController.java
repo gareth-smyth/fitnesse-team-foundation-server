@@ -16,15 +16,10 @@ public class TfsFileVersionController implements VersionsController {
     private final VersionsController persistence;
     private final TfsWrapper tfsWrapper;
 
-    protected TfsFileVersionController(String nativeTfsFolder, TfsWrapper tfsWrapper, VersionsController fileVersionsController) {
-        System.setProperty(NATIVE_FOLDER_SYSTEM_PROPERTY_KEY, nativeTfsFolder);
-        this.persistence = fileVersionsController;
-        this.tfsWrapper = tfsWrapper;
-    }
-
     public TfsFileVersionController(Properties properties) {
-        this(getNativeTfsFolder(properties), new TfsWrapper(getTfsServer(properties)), new SimpleFileVersionsController(new DiskFileSystem()));
-        tfsWrapper.initialise();
+        System.setProperty(NATIVE_FOLDER_SYSTEM_PROPERTY_KEY, getNativeTfsFolder(properties));
+        tfsWrapper = new TfsWrapper(getTfsServer(properties));
+        persistence = new SimpleFileVersionsController(new DiskFileSystem());
     }
 
     @Override
@@ -84,9 +79,9 @@ public class TfsFileVersionController implements VersionsController {
     }
 
     @Override
-    public void delete(FileVersion... files) {
-        for (FileVersion file : files) {
-            System.out.println("Delete files:" + file.getFile().getAbsolutePath());
+    public void delete(FileVersion... fileVersions) {
+        for (FileVersion fileVersion : fileVersions) {
+            tfsWrapper.delete(fileVersion.getFile());
         }
     }
 }

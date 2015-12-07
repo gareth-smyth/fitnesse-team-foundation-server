@@ -25,9 +25,10 @@ public class TfsWrapper {
 
     public TfsWrapper(String tfsServerUri) {
         this.tfsServerUri = tfsServerUri;
+        initialise();
     }
 
-    public void initialise(){
+    private void initialise(){
         TFSTeamProjectCollection tpc;
         try {
             tpc = new TFSTeamProjectCollection(new URI(tfsServerUri), new DefaultNTCredentials());
@@ -47,12 +48,33 @@ public class TfsWrapper {
         return workspaceItem==null ? null : workspaceItem.downloadFileToTempLocation(versionControlClient, normalisedFilePath.getFileName().toString());
     }
 
+    public void delete(File localFile) {
+        String filePath = getNormalisedFilePath(localFile).toString();
+        Workspace workspace = getWorkspace(filePath);
+        if(workspace!=null) {
+            NonFatalErrorListener nonFatalEventListener = new NonFatalErrorListener() {
+                @Override
+                public void onNonFatalError(NonFatalErrorEvent nonFatalErrorEvent) {
+                    System.out.println(nonFatalErrorEvent.getMessage());
+                }
+            };
+            versionControlClient.getEventEngine().addNonFatalErrorListener(nonFatalEventListener);
+            Workstation.getCurrent(persistenceStoreProvider).ensureUpdateWorkspaceInfoCache(versionControlClient, workspace.getOwnerName());
+            String parentPath = Paths.get(filePath).getParent().toAbsolutePath().toString();
+            workspace.pendDelete(new String[]{ filePath}, RecursionType.NONE, LockLevel.NONE, GetOptions.NONE, PendChangesOptions.NONE);
+            int failures = checkinPendingChanges(workspace, "Deleting file " + filePath + " to TFS");
+            if(failures>0) System.out.println(String.format("Failures checking-in %s: %d", parentPath, failures));
+        }else{
+            System.out.println(String.format("Could not find workspace to delete %s from.", filePath));
+        }
+    }
+
     public void checkinPending(File localFile) {
         String filePath = getNormalisedFilePath(localFile).toString();
         Workspace workspace = getWorkspace(filePath);
         if(workspace!=null) {
             Workstation.getCurrent(persistenceStoreProvider).ensureUpdateWorkspaceInfoCache(versionControlClient, workspace.getOwnerName());
-            workspace.pendEdit(new String[]{ filePath}, RecursionType.NONE, LockLevel.UNCHANGED, null, GetOptions.NONE, PendChangesOptions.NONE);
+            workspace.pendEdit(new String[]{ filePath}, RecursionType.NONE, LockLevel.NONE, null, GetOptions.NONE, PendChangesOptions.NONE);
             int failures = checkinPendingChanges(workspace, String.format("checking in file %s", filePath));
             if (failures>0) System.out.println(String.format("Failures checking-in: %d", failures));
         }else {
@@ -64,7 +86,6 @@ public class TfsWrapper {
         String filePath = getNormalisedFilePath(localFile).toString();
         Workspace workspace = getWorkspace(filePath);
         if(workspace!=null) {
-
             NonFatalErrorListener nonFatalEventListener = new NonFatalErrorListener() {
                 @Override
                 public void onNonFatalError(NonFatalErrorEvent nonFatalErrorEvent) {
@@ -74,7 +95,7 @@ public class TfsWrapper {
             versionControlClient.getEventEngine().addNonFatalErrorListener(nonFatalEventListener);
             Workstation.getCurrent(persistenceStoreProvider).ensureUpdateWorkspaceInfoCache(versionControlClient, workspace.getOwnerName());
             String parentPath = Paths.get(filePath).getParent().toAbsolutePath().toString();
-            workspace.pendAdd(new String[]{ filePath}, true, null, LockLevel.UNCHANGED, GetOptions.NONE, PendChangesOptions.NONE);
+            workspace.pendAdd(new String[]{ filePath}, false, null, LockLevel.UNCHANGED, GetOptions.NONE, PendChangesOptions.NONE);
             int failures = checkinPendingChanges(workspace, "Adding file " + filePath + " to TFS");
             if(failures>0) System.out.println(String.format("Failures checking-in %s: %d", parentPath, failures));
         }else{
@@ -85,6 +106,7 @@ public class TfsWrapper {
     private Path getNormalisedFilePath(File file){
         return file.toPath().toAbsolutePath().normalize();
     }
+
     private WorkspaceItem getWorkspaceItem(String filePath) {
         WorkspaceItemSet[] workspaceItemSets = getWorkspaceItemSets(filePath);
         if (workspaceItemSets == null) return null;
@@ -119,7 +141,7 @@ public class TfsWrapper {
         if(mappedServerPath==null) return null;
 
         ItemSpec[] itemSpecs = {new ItemSpec(mappedServerPath, RecursionType.NONE)};
-        WorkspaceItemSet[] workspaceItemSets = foundWorkspace.getItems(itemSpecs, DeletedState.ANY, ItemType.ANY, true, GetItemsOptions.NONE);
+        WorkspaceItemSet[] workspaceItemSets = foundWorkspace.getItems(itemSpecs, DeletedState.NON_DELETED, ItemType.ANY, true, GetItemsOptions.NONE);
         if (workspaceItemSets == null || workspaceItemSets.length == 0)
             throw new NotEnoughWorkspaceItemSetsException(mappedServerPath);
         if (workspaceItemSets.length > 1) throw new TooManyWorkspaceItemSetsException(workspaceItemSets);

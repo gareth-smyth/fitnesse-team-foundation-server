@@ -59,5 +59,6 @@ $RECYCLE.BIN/
 *.lnk
 
 .idea/*
+*.iml
 .gradle/*
 build/*
