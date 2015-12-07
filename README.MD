@@ -63,5 +63,9 @@ So in the end your fitnesse folder should look something like
     startFitnesse.sh  
     
 ## TODO
+* Extensive logging (can we get a log level from fitnesse or should it be configurable?  Need to investigate how logging works in fitnesse.)
+* Some way to throw exceptions to fitnesse?  Notify of conflicts etc?
+* Set up ignored files?  Or can we just use TFS ignore handling?
+
 * Everything important
 * Everything else 
