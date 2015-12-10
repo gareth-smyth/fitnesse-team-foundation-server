@@ -1,15 +1,15 @@
 package fitnesse.wiki.fs;
 
+import com.microsoft.tfs.core.clients.versioncontrol.soapextensions.Changeset;
 import fitnesse.wiki.VersionInfo;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
-import java.util.Collection;
-import java.util.Date;
-import java.util.Properties;
+import java.util.*;
 
-import static fitnesse.wiki.fs.TfsPropertiesHelper.*;
 import static fitnesse.wiki.fs.TfsPropertiesHelper.getNativeTfsFolder;
+import static fitnesse.wiki.fs.TfsPropertiesHelper.getTfsServer;
 
 public class TfsFileVersionController implements VersionsController {
     public static final String NATIVE_FOLDER_SYSTEM_PROPERTY_KEY = "com.microsoft.tfs.jni.native.base-directory";
@@ -48,7 +48,14 @@ public class TfsFileVersionController implements VersionsController {
 
     @Override
     public Collection<? extends VersionInfo> history(File... files) {
-        return null;
+        ArrayList<VersionInfo> history = new ArrayList<VersionInfo>();
+        for (File file : files) {
+            List<Changeset> changesets = tfsWrapper.getHistory(file);
+            for (Changeset changeset : changesets) {
+                history.add(new VersionInfo(changeset.getComment(), changeset.getOwner(), changeset.getDate().getTime()));
+            }
+        }
+        return history;
     }
 
     @Override

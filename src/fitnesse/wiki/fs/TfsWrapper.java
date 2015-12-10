@@ -6,6 +6,7 @@ import com.microsoft.tfs.core.clients.versioncontrol.events.NonFatalErrorEvent;
 import com.microsoft.tfs.core.clients.versioncontrol.events.NonFatalErrorListener;
 import com.microsoft.tfs.core.clients.versioncontrol.soapextensions.*;
 import com.microsoft.tfs.core.clients.versioncontrol.specs.ItemSpec;
+import com.microsoft.tfs.core.clients.versioncontrol.specs.version.LatestVersionSpec;
 import com.microsoft.tfs.core.config.persistence.PersistenceStoreProvider;
 import com.microsoft.tfs.core.httpclient.DefaultNTCredentials;
 import fitnesse.wiki.fs.exceptions.NotEnoughWorkspaceItemSetsException;
@@ -17,6 +18,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.List;
 
 public class TfsWrapper {
     private final String tfsServerUri;
@@ -28,7 +31,7 @@ public class TfsWrapper {
         initialise();
     }
 
-    private void initialise(){
+    private void initialise() {
         TFSTeamProjectCollection tpc;
         try {
             tpc = new TFSTeamProjectCollection(new URI(tfsServerUri), new DefaultNTCredentials());
@@ -45,13 +48,13 @@ public class TfsWrapper {
         Path normalisedFilePath = getNormalisedFilePath(localFile);
         String filePath = normalisedFilePath.toString();
         WorkspaceItem workspaceItem = getWorkspaceItem(filePath);
-        return workspaceItem==null ? null : workspaceItem.downloadFileToTempLocation(versionControlClient, normalisedFilePath.getFileName().toString());
+        return workspaceItem == null ? null : workspaceItem.downloadFileToTempLocation(versionControlClient, normalisedFilePath.getFileName().toString());
     }
 
     public void delete(File localFile) {
         String filePath = getNormalisedFilePath(localFile).toString();
         Workspace workspace = getWorkspace(filePath);
-        if(workspace!=null) {
+        if (workspace != null) {
             NonFatalErrorListener nonFatalEventListener = new NonFatalErrorListener() {
                 @Override
                 public void onNonFatalError(NonFatalErrorEvent nonFatalErrorEvent) {
@@ -61,10 +64,10 @@ public class TfsWrapper {
             versionControlClient.getEventEngine().addNonFatalErrorListener(nonFatalEventListener);
             Workstation.getCurrent(persistenceStoreProvider).ensureUpdateWorkspaceInfoCache(versionControlClient, workspace.getOwnerName());
             String parentPath = Paths.get(filePath).getParent().toAbsolutePath().toString();
-            workspace.pendDelete(new String[]{ filePath}, RecursionType.NONE, LockLevel.NONE, GetOptions.NONE, PendChangesOptions.NONE);
+            workspace.pendDelete(new String[]{filePath}, RecursionType.NONE, LockLevel.NONE, GetOptions.NONE, PendChangesOptions.NONE);
             int failures = checkinPendingChanges(workspace, "Deleting file " + filePath + " to TFS");
-            if(failures>0) System.out.println(String.format("Failures checking-in %s: %d", parentPath, failures));
-        }else{
+            if (failures > 0) System.out.println(String.format("Failures checking-in %s: %d", parentPath, failures));
+        } else {
             System.out.println(String.format("Could not find workspace to delete %s from.", filePath));
         }
     }
@@ -72,20 +75,29 @@ public class TfsWrapper {
     public void checkinPending(File localFile) {
         String filePath = getNormalisedFilePath(localFile).toString();
         Workspace workspace = getWorkspace(filePath);
-        if(workspace!=null) {
+        if (workspace != null) {
             Workstation.getCurrent(persistenceStoreProvider).ensureUpdateWorkspaceInfoCache(versionControlClient, workspace.getOwnerName());
-            workspace.pendEdit(new String[]{ filePath}, RecursionType.NONE, LockLevel.NONE, null, GetOptions.NONE, PendChangesOptions.NONE);
+            workspace.pendEdit(new String[]{filePath}, RecursionType.NONE, LockLevel.NONE, null, GetOptions.NONE, PendChangesOptions.NONE);
             int failures = checkinPendingChanges(workspace, String.format("checking in file %s", filePath));
-            if (failures>0) System.out.println(String.format("Failures checking-in: %d", failures));
-        }else {
+            if (failures > 0) System.out.println(String.format("Failures checking-in: %d", failures));
+        } else {
             System.out.println(String.format("Could not find workspace to check-in %s to.", filePath));
         }
+    }
+
+    public List<Changeset> getHistory(File localFile) {
+        Path normalisedFilePath = getNormalisedFilePath(localFile);
+        String filePath = normalisedFilePath.toString();
+        Changeset[] changesets = versionControlClient.queryHistory(filePath, LatestVersionSpec.INSTANCE, 0,
+                RecursionType.NONE, null, null, LatestVersionSpec.INSTANCE, Integer.MAX_VALUE, true, false, false, false);
+
+        return Arrays.asList(changesets);
     }
 
     public void addToRepository(File localFile) {
         String filePath = getNormalisedFilePath(localFile).toString();
         Workspace workspace = getWorkspace(filePath);
-        if(workspace!=null) {
+        if (workspace != null) {
             NonFatalErrorListener nonFatalEventListener = new NonFatalErrorListener() {
                 @Override
                 public void onNonFatalError(NonFatalErrorEvent nonFatalErrorEvent) {
@@ -95,15 +107,15 @@ public class TfsWrapper {
             versionControlClient.getEventEngine().addNonFatalErrorListener(nonFatalEventListener);
             Workstation.getCurrent(persistenceStoreProvider).ensureUpdateWorkspaceInfoCache(versionControlClient, workspace.getOwnerName());
             String parentPath = Paths.get(filePath).getParent().toAbsolutePath().toString();
-            workspace.pendAdd(new String[]{ filePath}, false, null, LockLevel.UNCHANGED, GetOptions.NONE, PendChangesOptions.NONE);
+            workspace.pendAdd(new String[]{filePath}, false, null, LockLevel.UNCHANGED, GetOptions.NONE, PendChangesOptions.NONE);
             int failures = checkinPendingChanges(workspace, "Adding file " + filePath + " to TFS");
-            if(failures>0) System.out.println(String.format("Failures checking-in %s: %d", parentPath, failures));
-        }else{
+            if (failures > 0) System.out.println(String.format("Failures checking-in %s: %d", parentPath, failures));
+        } else {
             System.out.println(String.format("Could not find workspace to add %s to.", filePath));
         }
     }
 
-    private Path getNormalisedFilePath(File file){
+    private Path getNormalisedFilePath(File file) {
         return file.toPath().toAbsolutePath().normalize();
     }
 
@@ -118,7 +130,7 @@ public class TfsWrapper {
         return workspaceItems[0];
     }
 
-    private Workspace getWorkspace(String filePath){
+    private Workspace getWorkspace(String filePath) {
         Workspace[] repositoryWorkspaces = getRepositoryWorkspaces();
         for (Workspace workspace : repositoryWorkspaces) {
             String mappedServerPath = workspace.getMappedServerPath(filePath);
@@ -135,10 +147,10 @@ public class TfsWrapper {
         for (Workspace workspace : repositoryWorkspaces) {
             foundWorkspace = workspace;
             mappedServerPath = workspace.getMappedServerPath(filePath);
-            if(mappedServerPath!=null) break;
+            if (mappedServerPath != null) break;
         }
 
-        if(mappedServerPath==null) return null;
+        if (mappedServerPath == null) return null;
 
         ItemSpec[] itemSpecs = {new ItemSpec(mappedServerPath, RecursionType.NONE)};
         WorkspaceItemSet[] workspaceItemSets = foundWorkspace.getItems(itemSpecs, DeletedState.NON_DELETED, ItemType.ANY, true, GetItemsOptions.NONE);
@@ -149,26 +161,23 @@ public class TfsWrapper {
         return workspaceItemSets;
     }
 
-    private Workspace[] getRepositoryWorkspaces(){
+    private Workspace[] getRepositoryWorkspaces() {
         return versionControlClient.getRepositoryWorkspaces(null, null, null);
     }
 
-    private int checkinPendingChanges(final Workspace workspace, final String comment)
-    {
+    private int checkinPendingChanges(final Workspace workspace, final String comment) {
         PendingSet pendingSet = workspace.getPendingChanges();
         int cs = 0;
 
-        if (pendingSet != null)
-        {
+        if (pendingSet != null) {
             PendingChange[] pendingChanges = pendingSet.getPendingChanges();
-            if (pendingChanges != null)
-            {
+            if (pendingChanges != null) {
                 System.out.println(String.format("Number of pending changes:%d", pendingChanges.length));
                 cs = workspace.checkIn(pendingChanges, comment);
-            }else{
+            } else {
                 System.out.println("Pending changes is null.");
             }
-        }else{
+        } else {
             System.out.println("Pending set is null.");
         }
 

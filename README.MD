@@ -7,7 +7,7 @@ Based on <https://github.com/amolenaar/fitnesse-git-plugin> and the samples in [
 
 ## Status
 
-Alpha - just a proof of concept at the moment.  Tests are lacking.  **Do not use anywhere**
+Alpha, tests are lacking. **Use at your own risk**
 
 ## Build
 Build uses gradle so install that and then run `gradle jar` , which will create a build folder and put the new
@@ -67,6 +67,7 @@ So in the end your fitnesse folder should look something like
     startFitnesse.sh  
     
 ## TODO
+* Return specific version rather than ignoring revision
 * Extensive logging (can we get a log level from fitnesse or should it be configurable?  Need to investigate how logging works in fitnesse.)
 * Some way to throw exceptions to fitnesse?  Notify of conflicts etc?
 * Set up ignored files?  Or can we just use TFS ignore handling?

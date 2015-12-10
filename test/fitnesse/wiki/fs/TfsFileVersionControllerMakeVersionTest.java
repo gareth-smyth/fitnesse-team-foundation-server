@@ -7,14 +7,18 @@ import org.junit.Before;
 import org.junit.Test;
 import util.FileUtil;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Properties;
 
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -67,7 +71,7 @@ public class TfsFileVersionControllerMakeVersionTest {
     }
 
     @Test
-    public void shouldSaveGivenFilesToTfs() throws IOException {
+    public void shouldAddGivenFilesToTfs() throws IOException {
         // Setup
         final FileVersion fileVersion1 = makeFileVersion("filename1", "File one content");
         final FileVersion fileVersion2 = makeFileVersion("filename2", "File two content");
@@ -76,20 +80,56 @@ public class TfsFileVersionControllerMakeVersionTest {
         tfsFileVersionController.makeVersion(fileVersion1, fileVersion2);
 
         // Cheat
-        Boolean cheatWorked = fileVersion1.getFile().delete();
-        cheatWorked = cheatWorked && fileVersion2.getFile().delete();
+        Boolean cheatWorked = cheatDelete(fileVersion1, fileVersion2);
         assertTrue("Trying to delete files created on disk to check they are retrieved from TFS failed.  This is a failure of how the test works.", cheatWorked);
 
         // Assert
         FileVersion[] revisionData = tfsFileVersionController.getRevisionData(null, fileVersion1.getFile(), fileVersion2.getFile());
 
-        // Clean up
-        tfsFileVersionController.delete(revisionData);
-
         List<String> file1Content = IOUtils.readLines(revisionData[0].getContent(), StandardCharsets.UTF_8);
         List<String> file2Content = IOUtils.readLines(revisionData[1].getContent(), StandardCharsets.UTF_8);
         assertThat(file1Content, contains("File one content"));
         assertThat(file2Content, contains("File two content"));
+
+        // Clean up local files
+        tfsFileVersionController.delete(fileVersion1, fileVersion2);
+    }
+
+    private Boolean cheatDelete(FileVersion... fileVersions) {
+        Boolean cheatWorked = true;
+        for (FileVersion fileVersion : fileVersions) {
+            cheatWorked = cheatWorked && fileVersion.getFile().delete();
+        }
+        return cheatWorked;
+    }
+
+    @Test
+    public void shouldAddNewVersionOfGivenFilesToTfs() throws IOException {
+        // Setup
+        final FileVersion fileVersion1 = makeFileVersion("filename1", "File one content");
+        final FileVersion fileVersion2 = makeFileVersion("filename2", "File two content");
+        final FileVersion fileVersion1b = makeFileVersion("filename1", "File one content changed");
+        final FileVersion fileVersion2b = makeFileVersion("filename2", "File two content changed");
+
+        // Execute
+        tfsFileVersionController.makeVersion(fileVersion1, fileVersion2);
+        tfsFileVersionController.makeVersion(fileVersion1b, fileVersion2b);
+
+        // Cheat
+        Boolean cheatWorked = cheatDelete(fileVersion1b, fileVersion2b);
+        assertTrue("Trying to delete files created on disk to check they are retrieved from TFS failed.  This is a failure of how the test works.", cheatWorked);
+
+        // Assert
+        @SuppressWarnings("unchecked")
+        List<FileVersion> revisionData = new ArrayList(tfsFileVersionController.history(fileVersion1b.getFile(), fileVersion2b.getFile()));
+
+        assertThat(revisionData.get(0), hasProperty("name", containsString("filename1")));
+        assertThat(revisionData.get(1), hasProperty("name", containsString("filename1")));
+        assertThat(revisionData.get(2), hasProperty("name", containsString("filename2")));
+        assertThat(revisionData.get(3), hasProperty("name", containsString("filename2")));
+
+        // Clean up local files
+        tfsFileVersionController.delete(fileVersion1, fileVersion2, fileVersion1b, fileVersion2b);
     }
 
     private FileVersion makeFileVersion(final String fileName, final String content) throws IOException {
